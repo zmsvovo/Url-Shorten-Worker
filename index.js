@@ -51,7 +51,23 @@ async function sha512(url){
     //console.log(hashHex)
     return hashHex
 }
+
+function isEncoded(uri) {
+  uri = uri || '';
+
+  return uri !== decodeURIComponent(uri);
+}
+
+function fullyDecodeURI(uri){
+
+  while (isEncoded(uri)){
+    uri = decodeURIComponent(uri);
+  }
+
+  return uri;
+}
 async function checkURL(URL){
+  
     let str=URL;
     let Expression=/http(s)?:\/\/([\w-]+\.)+[\w-]+(\/[\w- .\/?%&=]*)?/;
     let objExp=new RegExp(Expression);
@@ -105,25 +121,29 @@ async function handleRequest(request) {
   console.log(request)
   if (request.method === "POST") {
     let req=await request.json()
-    console.log(req["url"])
-    if(!await checkURL(req["url"])){
+    console.log()
+    let url = fullyDecodeURI(req["url"])
+    if(!url.startsWith("http")){
+        url="https://"+url;
+    }
+    if(!await checkURL(url)){
     return new Response(`{"status":500,"key":": Error: Url illegal."}`, {
       headers: response_header,
     })}
     let stat,random_key
     if (config.unique_link){
-      let url_sha512 = await sha512(req["url"])
+      let url_sha512 = await sha512(url)
       let url_key = await is_url_exist(url_sha512)
       if(url_key){
         random_key = url_key
       }else{
-        stat,random_key=await save_url(req["url"])
+        stat,random_key=await save_url(url)
         if (typeof(stat) == "undefined"){
           console.log(await LINKS.put(url_sha512,random_key))
         }
       }
     }else{
-      stat,random_key=await save_url(req["url"])
+      stat,random_key=await save_url(url)
     }
     console.log(stat)
     if (typeof(stat) == "undefined"){
@@ -165,6 +185,7 @@ async function handleRequest(request) {
   } else {
       location = value
   }
+  location = fullyDecodeURI(location)
   console.log(value)
   
 
